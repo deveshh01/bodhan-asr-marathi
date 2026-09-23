@@ -5,8 +5,9 @@ End-to-end fine-tuning of [`bodhan-ai/indic-transcribe-core`](https://huggingfac
 [SPRING-INX Marathi R2](https://huggingface.co/datasets/SPRINGLab/SPRING_INX_Marathi_R2)
 (IIT Madras SPRING Lab; conversational, code-mixed Marathi).
 
-Everything runs from one Colab notebook (A100 80GB); the notebook's `%%writefile`
-cells are a 1:1 mirror of this repository.
+All runs were done on Google Colab (A100 80GB). The notebook is in `notebooks/`; its
+`%%writefile` cells hold the first version of the code, and the final runs used this
+repository's code (`scripts/run_pipeline.sh` is the one-command, resumable way to reproduce).
 
 ## Results
 
