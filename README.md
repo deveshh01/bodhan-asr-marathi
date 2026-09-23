@@ -60,6 +60,36 @@ the model already knows Marathi, and what it learns here is mostly the corpus's
 spellings, conversational vocabulary - rather than new acoustics. That is also why more
 epochs on the same 45 h would not help; more *data* (37 unused shards) would be the lever.
 
+![training curves](docs/training_curves.png)
+
+### What changed, qualitatively
+
+From [`docs/results.md`](docs/results.md) (utterances whose WER changed most):
+
+| | text |
+|---|---|
+| REF | TELCECIGNOUNIOSNITTR आणि IIMB Platform |
+| zero-shot | टी ई एल सी ई सी आय जी एन ओ यू एन आय ओ ओ एस एन आय टी टी आर आणि आय आय एम बी प्लॅटफॉर्म |
+| fine-tuned | TELCECIGNOUNIOSNITTR आणि IMB platform |
+| REF | काय आहे तुम्ही जर **time** भराला असता ... |
+| zero-shot | काय तुम्ही जर **टाईम** भराला असता ... |
+| fine-tuned | काय आहे तुम्ही जर **time** भराला असता ... |
+| REF | हम्म |
+| zero-shot | ठीक आहे |
+| fine-tuned | हम्म |
+
+The model learned the corpus conventions: acronyms and English words stay in Latin
+script, and fillers (`हम्म`, `हा`) are transcribed literally instead of being "normalised"
+into different words.
+
+**Failure mode found - repetition loops.** On one test utterance the fine-tuned model
+emitted `ओके` ~60 times (utt WER 88% -> 412%). This is the classic greedy-decoding loop of
+AED models on hesitant, filler-heavy speech; a single such utterance costs ~0.3 WER points
+on this test set. Cheap mitigations not applied here (to keep base vs. fine-tuned decoding
+identical): `no_repeat_ngram_size=3` / `repetition_penalty`, capping `max_new_tokens`
+by audio duration, or beam search. Several references are also visibly truncated (e.g. a
+reference of just `time` for a long utterance), which inflates WER for *every* model.
+
 Artefacts (Google Drive): best checkpoint (bf16, self-contained), `train.log`,
 `history.jsonl`, TensorBoard events, per-utterance test predictions for every model, and
 the prepared manifests.
