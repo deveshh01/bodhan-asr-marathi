@@ -21,7 +21,11 @@ from bodhan_asr.text import normalize_for_wer  # noqa: E402
 
 
 def load_history(run: Path) -> list[dict]:
-    return [json.loads(line) for line in (run / "history.jsonl").read_text().splitlines() if line]
+    """Rows of the most recent run only: history.jsonl is append-only, so a relaunch in
+    the same output_dir appends a second run starting again at the step-0 dev eval."""
+    rows = [json.loads(line) for line in (run / "history.jsonl").read_text().splitlines() if line]
+    starts = [i for i, r in enumerate(rows) if r["step"] == 0 and "dev/wer" in r]
+    return rows[starts[-1]:] if starts else rows
 
 
 def plot_runs(runs: list[Path], out: Path) -> None:

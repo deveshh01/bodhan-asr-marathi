@@ -40,6 +40,7 @@ class ModelConfig:
 @dataclass
 class TrainConfig:
     output_dir: str = "/content/runs/mr_full"
+    overwrite_output_dir: bool = False
     seed: int = 42
     lr: float = 1e-5
     encoder_lr_scale: float = 1.0  # encoder LR = lr * scale (discriminative LR)

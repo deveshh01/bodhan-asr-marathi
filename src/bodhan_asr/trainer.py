@@ -85,7 +85,14 @@ def evaluate(adapter: AsrAdapter, loader: DataLoader, cfg: ExperimentConfig,
 
 def train(cfg: ExperimentConfig) -> dict:
     out = Path(cfg.train.output_dir)
+    if (out / "history.jsonl").exists() and not cfg.train.overwrite_output_dir:
+        # A second launch into the same dir would interleave logs and overwrite best/
+        # (this happened once in Colab when a notebook cell was re-run).
+        raise FileExistsError(f"{out} already holds a run; pass train.overwrite_output_dir=true "
+                              "or choose another train.output_dir")
     out.mkdir(parents=True, exist_ok=True)
+    for stale in ("history.jsonl", "train_summary.json"):
+        (out / stale).unlink(missing_ok=True)
     (out / "config.json").write_text(json.dumps(cfg.to_dict(), indent=2))
     torch.manual_seed(cfg.train.seed)
 
