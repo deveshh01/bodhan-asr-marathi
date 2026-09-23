@@ -1,0 +1,34 @@
+# Full fine-tuning of Indic-Transcribe-Core on SPRING-INX Marathi (A100 80GB).
+data:
+  train_manifest: /content/data/prepared/train.jsonl
+  dev_manifest: /content/data/prepared/dev.jsonl
+  test_manifest: /content/data/prepared/test.jsonl
+  lang: mr
+  max_batch_seconds: 600    # padded audio-seconds per step (~40-50 utts)
+  max_batch_size: 48
+  num_workers: 8
+
+model:
+  name_or_path: /content/models/indic-transcribe-core
+  strategy: full            # full | decoder_only | lora
+  freeze_encoder_layers: 0
+  prompt_mode: mixed        # corpus writes English loanwords in Latin script
+  spec_augment: true
+  label_smoothing: 0.0
+
+train:
+  output_dir: /content/runs/mr_full
+  seed: 42
+  lr: 1.0e-5                # low LR: model already knows Marathi; avoid forgetting
+  encoder_lr_scale: 1.0
+  weight_decay: 0.01
+  warmup_steps: 150
+  max_steps: 1500
+  grad_accum: 1
+  max_grad_norm: 1.0
+  precision: bf16
+  eval_every: 250
+  log_every: 10
+  early_stopping_patience: 3
+  num_beams: 1
+  max_new_tokens: 256

@@ -1,0 +1,27 @@
+# Parameter-efficient variant: LoRA on all encoder+decoder attention projections.
+data:
+  train_manifest: /content/data/prepared/train.jsonl
+  dev_manifest: /content/data/prepared/dev.jsonl
+  test_manifest: /content/data/prepared/test.jsonl
+  lang: mr
+  max_batch_seconds: 600
+  max_batch_size: 48
+  num_workers: 8
+
+model:
+  name_or_path: /content/models/indic-transcribe-core
+  strategy: lora
+  lora_r: 32
+  lora_alpha: 64
+  lora_dropout: 0.05
+  prompt_mode: mixed
+  spec_augment: true
+
+train:
+  output_dir: /content/runs/mr_lora
+  lr: 2.0e-4                # LoRA needs a much higher LR than full FT
+  warmup_steps: 150
+  max_steps: 1500
+  precision: bf16
+  eval_every: 250
+  early_stopping_patience: 3
