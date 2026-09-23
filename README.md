@@ -84,8 +84,8 @@ into different words.
 
 **Failure mode found - repetition loops.** On one test utterance the fine-tuned model
 emitted `ओके` ~60 times (utt WER 88% -> 412%). This is the classic greedy-decoding loop of
-AED models on hesitant, filler-heavy speech; a single such utterance costs ~0.3 WER points
-on this test set. Cheap mitigations not applied here (to keep base vs. fine-tuned decoding
+AED models on hesitant, filler-heavy speech; that single utterance alone adds ~60 insertion errors
+to the test set. Cheap mitigations not applied here (to keep base vs. fine-tuned decoding
 identical): `no_repeat_ngram_size=3` / `repetition_penalty`, capping `max_new_tokens`
 by audio duration, or beam search. Several references are also visibly truncated (e.g. a
 reference of just `time` for a long utterance), which inflates WER for *every* model.
