@@ -116,9 +116,10 @@ class AsrAdapter:
                       Tok.from_pretrained(str(model_dir)), cfg, model_dir, device)
         adapter._apply_strategy()
         if checkpoint and strategy == "lora":
-            from peft import set_peft_model_state_dict
             from safetensors.torch import load_file
-            set_peft_model_state_dict(model, load_file(str(Path(checkpoint) / "adapter.safetensors")))
+            _, unexpected = model.load_state_dict(
+                load_file(str(Path(checkpoint) / "adapter.safetensors")), strict=False)
+            assert not unexpected, f"adapter keys not in model: {unexpected[:5]}"
             log.info("loaded LoRA adapter from %s", checkpoint)
         model.to(device)
         n_train = sum(p.numel() for p in adapter.trainable_parameters())
@@ -246,17 +247,19 @@ class AsrAdapter:
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
         if self.cfg.model.strategy == "lora":
-            from peft import get_peft_model_state_dict
             from safetensors.torch import save_file
-            sd = {k: v.detach().cpu().contiguous() for k, v in get_peft_model_state_dict(self.model).items()}
+            # adapters were injected (not wrapped in PeftModel), so select them by name
+            sd = {k: v.detach().cpu().contiguous() for k, v in self.model.state_dict().items()
+                  if "lora_" in k}
             save_file(sd, str(out_dir / "adapter.safetensors"))
         else:
             # bf16 *copy* on disk (2.4 GB vs 4.9 GB; inference runs in bf16 anyway).
             # Never cast the live model: that would truncate the fp32 master
-            # weights the optimizer is still updating. lm_head is tied to the
-            # token embedding and re-tied on load, so it isn't stored twice.
-            sd = {k: v.detach().to(torch.bfloat16) for k, v in self.model.state_dict().items()
-                  if k != "lm_head.weight"}
+            # weights the optimizer is still updating. The .to() copies also
+            # untie lm_head/embedding, so safetensors stores both explicitly
+            # (+15 MB) and loading never depends on re-tying behaviour.
+            sd = {k: v.detach().to(torch.bfloat16).contiguous()
+                  for k, v in self.model.state_dict().items()}
             self.model.save_pretrained(str(out_dir), state_dict=sd, safe_serialization=True)
             for pat in _ASSET_GLOBS:  # make the dir loadable by upstream IndicTranscribe
                 for f in self.model_dir.glob(pat):

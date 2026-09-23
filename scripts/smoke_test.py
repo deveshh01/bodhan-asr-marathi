@@ -53,4 +53,24 @@ loss.backward()
 gn = torch.nn.utils.clip_grad_norm_(adapter.trainable_parameters(), 1.0)
 opt.step()
 print(f"train loss {loss.item():.4f} grad_norm {gn:.3f} peak_mem {torch.cuda.max_memory_allocated() / 1e9:.1f} GB")
+
+# 4. Checkpoint round-trip: save -> reload -> identical greedy decode. Catches silent
+#    weight corruption on save/load before any GPU-hour is spent.
+ckpt = Path("/content/smoke_ckpt")
+adapter.save(ckpt)
+adapter.model.eval()
+with torch.autocast("cuda", dtype=torch.bfloat16):
+    before = adapter.transcribe(batch)
+del adapter, opt
+torch.cuda.empty_cache()
+reloaded = AsrAdapter.from_config(cfg, checkpoint=str(ckpt))
+reloaded.model.eval()
+batch = reloaded.to_device(reloaded.collate([ds[i] for i in range(len(ds))]))
+with torch.autocast("cuda", dtype=torch.bfloat16):
+    after = reloaded.transcribe(batch)
+same = sum(a == b for a, b in zip(before, after))
+print(f"checkpoint round-trip: {same}/{len(before)} identical decodes")
+assert same >= len(before) - 1, "reloaded checkpoint decodes differently - save/load is broken"
+import shutil  # noqa: E402
+shutil.rmtree(ckpt)
 print("SMOKE TEST OK")
