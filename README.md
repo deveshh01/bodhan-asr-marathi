@@ -19,6 +19,7 @@ training or checkpoint selection. WER/CER on normalised text (see *Training setu
 | Indic-Transcribe-Core, zero-shot | native | 41.33 | 20.88 |
 | Indic-Transcribe-Core, zero-shot | mixed | 41.19 | 20.85 |
 | **+ full fine-tuning (this repo)** | mixed | **35.76** | **16.94** |
+| + LoRA r=32 on all attention projections | mixed | 35.90 | 17.08 |
 
 **-5.4 WER points (-13.2% relative), -3.9 CER points (-18.8% relative)** after 21 minutes
 of training on one A100 (1,500 steps ≈ 4.2 epochs over 45 h of audio).
@@ -27,6 +28,22 @@ of training on one A100 (1,500 steps ≈ 4.2 epochs over 45 h of audio).
 same config; the two runs reached **35.90 / 16.96** and **35.76 / 16.94** test WER / CER.
 The 0.14-point spread is small next to the 5.4-point gain, so the improvement is not a
 lucky seed. The shipped checkpoint is from the second run.
+
+**Full fine-tuning vs. LoRA.** LoRA trains 21M parameters (1.7% of 1.24B) and its
+checkpoint is ~85 MB instead of 2.4 GB, yet it recovers **97% of the full fine-tuning gain**
+(-5.29 vs -5.43 WER points). The 0.14-point gap equals the run-to-run spread of full
+fine-tuning, so on this data the two are statistically indistinguishable. This is consistent
+with the next observation: the adaptation needed is low-rank - conventions and domain, not
+new acoustics. For deploying many per-domain/per-dialect variants on one base model, LoRA is
+the clear choice; full FT remains the safer default when data grows substantially.
+
+| | full FT | LoRA r=32 |
+|---|---|---|
+| trainable params | 1,221M (100%) | 21M (1.7%) |
+| checkpoint | 2.4 GB (bf16) | ~85 MB |
+| LR | 1e-5 | 2e-4 |
+| best dev WER (step) | 32.68 (1250) | 32.70 (1000) |
+| test WER / CER | 35.76 / 16.94 | 35.90 / 17.08 |
 
 Dev-set trajectory of the shipped run (1,000-utterance subset of the official validation
 split, used for model selection):
