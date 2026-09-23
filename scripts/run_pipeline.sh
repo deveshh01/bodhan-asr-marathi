@@ -26,6 +26,9 @@ restore() { [ -d "$DRIVE_DIR/runs/$1" ] && rsync -a "$DRIVE_DIR/runs/$1" "$RUNS/
 
 log "installing dependencies"
 pip -q install -r requirements.txt 2>&1 | tail -1
+# Colab preinstalls torchao 0.10, which makes recent peft refuse to import
+# ("only versions above 0.16.0 are supported"). Nothing here uses torchao.
+pip -q uninstall -y torchao 2>/dev/null || true
 
 log "model snapshot"
 python - <<EOF

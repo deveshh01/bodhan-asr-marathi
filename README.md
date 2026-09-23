@@ -8,7 +8,38 @@ End-to-end fine-tuning of [`bodhan-ai/indic-transcribe-core`](https://huggingfac
 Everything runs from one Colab notebook (A100 80GB); the notebook's `%%writefile`
 cells are a 1:1 mirror of this repository.
 
-<!-- RESULTS -->
+## Results
+
+Official SPRING-INX Marathi **test split** (1,929 utterances, 5.05 h), never used for
+training or checkpoint selection. WER/CER on normalised text (see *Training setup* below).
+
+| model | prompt mode | test WER % | test CER % |
+|---|---|---|---|
+| Indic-Transcribe-Core, zero-shot | native | 41.33 | 20.88 |
+| Indic-Transcribe-Core, zero-shot | mixed | 41.19 | 20.85 |
+| **+ full fine-tuning (this repo)** | mixed | **35.90** | **16.96** |
+
+**-5.3 WER points (-12.8% relative), -3.9 CER points (-18.6% relative)** after 21 minutes
+of training on one A100 (1,500 steps ≈ 5 epochs over 45 h of audio).
+
+Dev-set trajectory (1,000-utterance subset of the official validation split, used for
+model selection):
+
+| step | 0 (zero-shot) | 250 | 500 | 1000 (best) | 1250 | 1500 |
+|---|---|---|---|---|---|---|
+| dev WER % | 38.34 | 33.86 | 33.23 | **32.94** | 32.95 | see `history.jsonl` |
+| dev CER % | 19.32 | 16.11 | 15.42 | **15.39** | 15.42 | |
+| dev loss | 1.49 | 0.78 | 0.75 | 0.73 | 0.72 | |
+
+Most of the gain arrives in the first 250 steps and the curve is flat after ~1,000 steps:
+the model already knows Marathi, and what it learns here is mostly the corpus's
+**conventions and domain** - English loanwords written in Latin script, colloquial
+spellings, conversational vocabulary - rather than new acoustics. That is also why more
+epochs on the same 45 h would not help; more *data* (37 unused shards) would be the lever.
+
+Artefacts (Google Drive): best checkpoint (bf16, self-contained), `train.log`,
+`history.jsonl`, TensorBoard events, per-utterance test predictions for every model, and
+the prepared manifests.
 
 ## Repository layout
 
@@ -159,8 +190,17 @@ rather than punctuation conventions. Predictions keep punctuation.
 - **Noisy references**: several references omit words that are clearly spoken (the model's
   zero-shot hypothesis contains them). This caps attainable WER and means small WER changes
   should be read with care; the per-utterance prediction files make this auditable.
-- **Colab ergonomics**: long jobs run as background processes (logs + TensorBoard on disk)
-  so the notebook stays responsive and a browser disconnect cannot kill training.
+- **Colab VM recycled mid-session**: the first complete training run (identical results
+  on dev) was lost when Colab recycled the VM, because outputs lived only on the VM disk.
+  Fix: `scripts/run_pipeline.sh` - a resumable pipeline that copies each stage's outputs
+  to Google Drive as soon as it finishes and skips stages already marked done, so a
+  disconnect costs at most one stage. Long jobs also run as background processes (logs +
+  TensorBoard on disk) so the notebook stays responsive.
+- **Colab dependency clash**: the LoRA run first died at import time - Colab preinstalls
+  `torchao 0.10`, and recent `peft` refuses to import next to any torchao older than 0.16.
+  Nothing here uses torchao, so the pipeline uninstalls it rather than pinning peft.
+- **Checkpoint trust**: the smoke test saves, reloads and re-decodes a checkpoint before
+  any long run, so a save/load bug surfaces in minute one rather than after training.
 
 ## Limitations / next steps
 
