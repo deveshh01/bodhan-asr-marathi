@@ -18,19 +18,24 @@ training or checkpoint selection. WER/CER on normalised text (see *Training setu
 |---|---|---|---|
 | Indic-Transcribe-Core, zero-shot | native | 41.33 | 20.88 |
 | Indic-Transcribe-Core, zero-shot | mixed | 41.19 | 20.85 |
-| **+ full fine-tuning (this repo)** | mixed | **35.90** | **16.96** |
+| **+ full fine-tuning (this repo)** | mixed | **35.76** | **16.94** |
 
-**-5.3 WER points (-12.8% relative), -3.9 CER points (-18.6% relative)** after 21 minutes
-of training on one A100 (1,500 steps ≈ 5 epochs over 45 h of audio).
+**-5.4 WER points (-13.2% relative), -3.9 CER points (-18.8% relative)** after 21 minutes
+of training on one A100 (1,500 steps ≈ 4.2 epochs over 45 h of audio).
 
-Dev-set trajectory (1,000-utterance subset of the official validation split, used for
-model selection):
+**Reproducibility:** the full fine-tuning run was (accidentally) executed twice with the
+same config; the two runs reached **35.90 / 16.96** and **35.76 / 16.94** test WER / CER.
+The 0.14-point spread is small next to the 5.4-point gain, so the improvement is not a
+lucky seed. The shipped checkpoint is from the second run.
 
-| step | 0 (zero-shot) | 250 | 500 | 1000 (best) | 1250 | 1500 |
-|---|---|---|---|---|---|---|
-| dev WER % | 38.34 | 33.86 | 33.23 | **32.94** | 32.95 | see `history.jsonl` |
-| dev CER % | 19.32 | 16.11 | 15.42 | **15.39** | 15.42 | |
-| dev loss | 1.49 | 0.78 | 0.75 | 0.73 | 0.72 | |
+Dev-set trajectory of the shipped run (1,000-utterance subset of the official validation
+split, used for model selection):
+
+| step | 0 (zero-shot) | 250 | 500 | 750 | 1000 | 1250 (best) | 1500 |
+|---|---|---|---|---|---|---|---|
+| dev WER % | 38.34 | 34.04 | 33.68 | 32.95 | 32.85 | **32.68** | 32.74 |
+| dev CER % | 19.32 | 16.20 | 15.78 | 15.31 | 15.24 | **15.24** | 15.27 |
+| dev loss | 1.49 | 0.78 | 0.74 | 0.73 | 0.73 | 0.73 | 0.72 |
 
 Most of the gain arrives in the first 250 steps and the curve is flat after ~1,000 steps:
 the model already knows Marathi, and what it learns here is mostly the corpus's
@@ -200,6 +205,12 @@ rather than punctuation conventions. Predictions keep punctuation.
 - **Colab dependency clash**: the LoRA run first died at import time - Colab preinstalls
   `torchao 0.10`, and recent `peft` refuses to import next to any torchao older than 0.16.
   Nothing here uses torchao, so the pipeline uninstalls it rather than pinning peft.
+- **Accidental duplicate run**: re-running the notebook's training cell launched a second
+  full run into the same output directory while the first had finished; it overwrote
+  `best/` and appended to the logs. Rather than kill it half-way (which would have left a
+  half-trained `best/`), I let it finish, re-evaluated its checkpoint, and used the pair
+  as a reproducibility check. The trainer now refuses to start in a directory that
+  already holds a run unless `train.overwrite_output_dir=true`.
 - **Checkpoint trust**: the smoke test saves, reloads and re-decodes a checkpoint before
   any long run, so a save/load bug surfaces in minute one rather than after training.
 
